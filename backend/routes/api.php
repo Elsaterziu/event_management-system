@@ -1,19 +1,37 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\RegistrationController;
+use App\Http\Controllers\Api\UserController;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
-*/
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+Route::get('/events', [EventController::class, 'index']);
+Route::get('/events/{id}', [EventController::class, 'show']);
+Route::get('/events/{id}/participants', [EventController::class, 'participants']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+    Route::post('/register-event', [RegistrationController::class, 'register']);
+    Route::get('/users/{userId}/registrations', [RegistrationController::class, 'userEvents']);
+    Route::delete('/registrations/{id}', [RegistrationController::class, 'cancel']);
+
+Route::middleware('admin')->group(function () {
+    Route::get('/users', [UserController::class, 'index']);
+    Route::put('/users/{id}/role', [UserController::class, 'updateRole']);
+
+    Route::get('/registrations', [RegistrationController::class, 'index']);
+    
+    Route::post('/events', [EventController::class, 'store']);
+    Route::put('/events/{id}', [EventController::class, 'update']);
+    Route::delete('/events/{id}', [EventController::class, 'destroy']);
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
+    
+    Route::post('/events/{id}/add-user', [EventController::class, 'addUserToEvent']);
+    Route::delete('/events/{eventId}/remove-user/{userId}', [EventController::class, 'removeUserFromEvent']);
+    });
 });
