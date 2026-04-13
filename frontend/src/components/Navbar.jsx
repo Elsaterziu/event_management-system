@@ -77,6 +77,12 @@ function Navbar() {
             Events
           </NavLink>
 
+          {user && (
+            <NavLink to="/assistant" style={navLinkStyle}>
+              Assistant
+            </NavLink>
+          )}
+
           {user?.role === "user" && (
             <NavLink to="/my-events" style={navLinkStyle}>
               My Events

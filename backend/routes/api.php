@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\RegistrationController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\AssistantController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -19,6 +20,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/register-event', [RegistrationController::class, 'register']);
     Route::get('/users/{userId}/registrations', [RegistrationController::class, 'userEvents']);
     Route::delete('/registrations/{id}', [RegistrationController::class, 'cancel']);
+
+    Route::get('/assistant/sessions', [AssistantController::class, 'sessions']);
+    Route::post('/assistant/session', [AssistantController::class, 'createSession']);
+    Route::get('/assistant/session/{id}', [AssistantController::class, 'showSession']);
+    Route::post('/assistant/chat', [AssistantController::class, 'chat']);
 
 Route::middleware('admin')->group(function () {
     Route::get('/users', [UserController::class, 'index']);

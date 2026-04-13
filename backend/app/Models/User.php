@@ -46,4 +46,9 @@ class User extends Authenticatable
         return $this->belongsToMany(Event::class, 'registrations')
                     ->withTimestamps();
     }
+
+    public function chatSessions()
+    {
+        return $this->hasMany(\App\Models\ChatSession::class);
+    }
 }

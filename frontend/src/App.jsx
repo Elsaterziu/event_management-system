@@ -8,6 +8,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import MyEvents from "./pages/MyEvents";
 import Participants from "./pages/Participants";
 import EventDetails from "./pages/EventDetails";
+import AssistantPage from "./pages/AssistantPage";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/my-events" element={<MyEvents />} />
+        <Route path="/assistant" element={<AssistantPage />} />
         <Route path="/events/:eventId/participants" element={<Participants />} />
         <Route path="/events/:id" element={<EventDetails />} />
       </Routes>
