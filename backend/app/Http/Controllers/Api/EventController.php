@@ -33,24 +33,25 @@ class EventController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'required|string',
-            'event_date' => 'required|date',
-            'location' => 'required|string|max:255',
-            'max_participants' => 'required|integer|min:1',
-            'created_by' => 'required|exists:users,id',
-            'image' => 'nullable|url',
-        ]);
+{
+    $validated = $request->validate([
+        'title' => 'required|string|max:255',
+        'description' => 'required|string',
+        'event_date' => 'required|date',
+        'location' => 'required|string|max:255',
+        'max_participants' => 'required|integer|min:1',
+        'image' => 'nullable|url',
+    ]);
 
-        $event = Event::create($validated);
+    $validated['created_by'] = auth()->id();
 
-        return response()->json([
-            'message' => 'Event created successfully',
-            'event' => $event
-        ], 201);
-    }
+    $event = Event::create($validated);
+
+    return response()->json([
+        'message' => 'Event created successfully',
+        'event' => $event
+    ], 201);
+}
 
     public function update(Request $request, $id)
     {
