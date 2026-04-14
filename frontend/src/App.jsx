@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Events from "./pages/Events";
@@ -12,7 +12,7 @@ import AssistantPage from "./pages/AssistantPage";
 
 function App() {
   return (
-    <BrowserRouter>
+    <>
       <Navbar />
 
       <Routes>
@@ -26,7 +26,7 @@ function App() {
         <Route path="/events/:eventId/participants" element={<Participants />} />
         <Route path="/events/:id" element={<EventDetails />} />
       </Routes>
-    </BrowserRouter>
+    </>
   );
 }
 

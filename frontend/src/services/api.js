@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://eventmanagementsystem.ct.ws/api",
+  baseURL: "/api",
   headers: {
     "Content-Type": "application/json",
   },
