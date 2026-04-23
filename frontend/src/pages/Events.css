@@ -378,11 +378,14 @@
   font-size: 13px;
   color: #64748b;
   margin-bottom: 6px;
+  font-weight: 500;
 }
 
 .detail-box strong {
-  color: #0f172a;
   font-size: 16px;
+  color: #0f172a;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .back-link {
@@ -433,4 +436,48 @@
   .event-details-content h1 {
     font-size: 28px;
   }
+}
+.event-extra-card {
+  margin-top: 24px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.event-extra-card h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.event-extra-card p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+.detail-box span {
+  display: block;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.detail-box strong {
+  font-size: 16px;
+  color: #0f172a;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.bottom-actions {
+  margin-top: 28px;
+}
+
+.bottom-actions .btn {
+  min-width: 220px;
+  justify-content: center;
 }

@@ -25,6 +25,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/assistant/session', [AssistantController::class, 'createSession']);
     Route::get('/assistant/session/{id}', [AssistantController::class, 'showSession']);
     Route::post('/assistant/chat', [AssistantController::class, 'chat']);
+    Route::post('/assistant/session/{id}/delete', [AssistantController::class, 'destroySession']);
 
 Route::middleware('admin')->group(function () {
     Route::get('/users', [UserController::class, 'index']);

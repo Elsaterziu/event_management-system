@@ -19,11 +19,6 @@ function EventDetails() {
     if (image.startsWith("/storage/")) return `http://127.0.0.1:8000${image}`;
     if (image.startsWith("storage/")) return `http://127.0.0.1:8000/${image}`;
     return `http://127.0.0.1:8000/storage/${image}`;
-  }; 
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString();
   };
 
   const fetchEvent = async () => {
@@ -54,7 +49,9 @@ function EventDetails() {
   }, [id]);
 
   const isRegistered = () => {
-    return userRegistrations.some((registration) => registration.event_id === Number(id));
+    return userRegistrations.some(
+      (registration) => registration.event_id === Number(id)
+    );
   };
 
   const getParticipantsCount = () => {
@@ -67,6 +64,29 @@ function EventDetails() {
 
   const isEventFull = () => {
     return getRemainingSpots() <= 0;
+  };
+
+  const getEventStatus = () => {
+    if (isEventFull()) return "Full";
+    if (getRemainingSpots() <= 10) return "Almost Full";
+    return "Open";
+  };
+
+  const formatDateOnly = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const formatTimeOnly = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const handleRegisterToEvent = async () => {
@@ -96,11 +116,19 @@ function EventDetails() {
   };
 
   if (loading) {
-    return <div className="event-details-page"><p>Loading event details...</p></div>;
+    return (
+      <div className="event-details-page">
+        <p>Loading event details...</p>
+      </div>
+    );
   }
 
   if (!event) {
-    return <div className="event-details-page"><p>Event not found.</p></div>;
+    return (
+      <div className="event-details-page">
+        <p>Event not found.</p>
+      </div>
+    );
   }
 
   return (
@@ -122,72 +150,98 @@ function EventDetails() {
 
           <div className="event-details-content">
             <h1>{event.title}</h1>
+
             <p className="event-details-description">
               {event.description || "No description available."}
             </p>
 
             <div className="event-details-info-grid">
-  <div className="detail-box">
-    <span>Date</span>
-    <strong>{formatDate(event.event_date)}</strong>
-  </div>
+              <div className="detail-box">
+                <span>Date</span>
+                <strong>{formatDateOnly(event.event_date)}</strong>
+              </div>
 
-  <div className="detail-box">
-    <span>Location</span>
-    <strong>{event.location || "N/A"}</strong>
-  </div>
+              <div className="detail-box">
+                <span>Time</span>
+                <strong>{formatTimeOnly(event.event_date)}</strong>
+              </div>
 
-  <div className="detail-box">
-    <span>Max Participants</span>
-    <strong>{event.max_participants}</strong>
-  </div>
+              <div className="detail-box">
+                <span>Location</span>
+                <strong>{event.location || "N/A"}</strong>
+              </div>
 
-  <div className="detail-box">
-    <span>Registered</span>
-    <strong>{getParticipantsCount()}</strong>
-  </div>
+              <div className="detail-box">
+                <span>Capacity</span>
+                <strong>{event.max_participants || 0} attendees</strong>
+              </div>
 
-  <div className="detail-box">
-    <span>Remaining Spots</span>
-    <strong>{Math.max(getRemainingSpots(), 0)}</strong>
-  </div>
+              <div className="detail-box">
+                <span>Spots Left</span>
+                <strong>{Math.max(getRemainingSpots(), 0)}</strong>
+              </div>
 
-  {event.creator?.name && (
-    <div className="detail-box">
-      <span>Created by</span>
-      <strong>{event.creator.name}</strong>
-    </div>
-  )}
-</div>
+              <div className="detail-box">
+                <span>Status</span>
+                <strong>{getEventStatus()}</strong>
+              </div>
+
+              {event.creator?.name && (
+                <div className="detail-box">
+                  <span>Organizer</span>
+                  <strong>{event.creator.name}</strong>
+                </div>
+              )}
+
+              <div className="detail-box">
+                <span>Participants</span>
+                <strong>{getParticipantsCount()} registered</strong>
+              </div>
+            </div>
+
+            <div className="event-extra-card">
+              <h3>Event Overview</h3>
+              <p>
+                This event is scheduled for{" "}
+                <strong>{formatDateOnly(event.event_date)}</strong> at{" "}
+                <strong>{formatTimeOnly(event.event_date)}</strong> in{" "}
+                <strong>{event.location || "N/A"}</strong>. Currently there are{" "}
+                <strong>{Math.max(getRemainingSpots(), 0)}</strong> spots left
+                out of <strong>{event.max_participants || 0}</strong>.
+              </p>
+            </div>
 
             {user?.role === "admin" && (
-              <div className="event-details-actions">
-                <Link to={`/events/${event.id}/participants`} className="btn btn-secondary-dark">
+              <div className="event-details-actions bottom-actions">
+                <Link
+                  to={`/events/${event.id}/participants`}
+                  className="btn btn-secondary-dark"
+                >
                   View Participants
                 </Link>
               </div>
             )}
 
             {user?.role === "user" && (
-              <div className="event-details-actions">
+              <div className="event-details-actions bottom-actions">
                 {isRegistered() ? (
                   <Link to="/my-events" className="btn btn-soft">
                     View in My Events
                   </Link>
                 ) : isEventFull() ? (
                   <button disabled className="btn btn-disabled">
-                    Full
+                    Event Full
                   </button>
                 ) : (
                   <button onClick={handleRegisterToEvent} className="btn btn-primary">
-                    Register
+                    Register for This Event
                   </button>
                 )}
               </div>
             )}
 
             {!user && (
-              <div className="event-details-actions">
+              <div className="event-details-actions bottom-actions">
                 <Link to="/login" className="btn btn-primary">
                   Login to Register
                 </Link>
