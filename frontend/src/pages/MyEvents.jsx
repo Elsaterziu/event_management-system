@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "react-toastify";
 import api from "../services/api";
 
 function MyEvents() {
   const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
-
+const [cancelId, setCancelId] = useState(null);
   const user = JSON.parse(localStorage.getItem("user"));
 
   const fetchMyEvents = async () => {
@@ -28,20 +29,23 @@ function MyEvents() {
     fetchMyEvents();
   }, []);
 
-  const handleCancelRegistration = async (registrationId) => {
-    const confirmed = window.confirm("Do you want to cancel this registration?");
-    if (!confirmed) return;
+  const handleCancelRegistration = async () => {
+  try {
+    await api.delete(`/registrations/${cancelId}`);
 
-    try {
-      await api.delete(`/registrations/${registrationId}`);
-      setRegistrations((prev) =>
-        prev.filter((registration) => registration.id !== registrationId)
-      );
-    } catch (error) {
-      console.error("Error cancelling registration:", error);
-      alert("Failed to cancel registration.");
-    }
-  };
+    setRegistrations((prev) =>
+      prev.filter((r) => r.id !== cancelId)
+    );
+
+    toast.success("Registration cancelled!");
+
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to cancel registration.");
+  } finally {
+    setCancelId(null);
+  }
+};
 
   const isUpcoming = (eventDate) => {
     if (!eventDate) return false;
@@ -104,18 +108,25 @@ function MyEvents() {
   }, [registrations, activeFilter]);
 
   const topCardStyle = (type) => {
-    const isActive = activeFilter === type;
+  const isActive = activeFilter === type;
 
-    return {
-      background: isActive ? "#eff6ff" : "white",
-      borderRadius: "16px",
-      padding: "22px",
-      border: isActive ? "1.5px solid #2563eb" : "1px solid #e2e8f0",
-      boxShadow: "0 6px 18px rgba(15, 23, 42, 0.05)",
-      cursor: "pointer",
-      transition: "0.2s ease",
-    };
+  return {
+    background: isActive ? "#eff6ff" : "white",
+    borderRadius: "16px",
+    padding: "22px",
+    border: isActive ? "1.5px solid #2563eb" : "1px solid #e2e8f0",
+    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.05)",
+    cursor: "pointer",
+    transition: "0.2s ease",
+
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    textAlign: "center",
+    gap: "6px"
   };
+};
 
   if (!user) {
     return (
@@ -291,7 +302,7 @@ function MyEvents() {
 
                     <div style={{ marginTop: "auto" }}>
                       <button
-                        onClick={() => handleCancelRegistration(registration.id)}
+                        onClick={() => setCancelId(registration.id)}
                         style={{
                           width: "100%",
                           padding: "12px 14px",
@@ -313,6 +324,30 @@ function MyEvents() {
             })}
           </div>
         )}
+        {cancelId && (
+  <div className="confirm-overlay">
+    <div className="confirm-modal">
+      <h3>Cancel registration?</h3>
+      <p>Are you sure you want to cancel this registration?</p>
+
+      <div className="confirm-actions">
+        <button
+          className="btn btn-light"
+          onClick={() => setCancelId(null)}
+        >
+          No
+        </button>
+
+        <button
+          className="btn btn-danger"
+          onClick={handleCancelRegistration}
+        >
+          Yes, Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </div>
   );

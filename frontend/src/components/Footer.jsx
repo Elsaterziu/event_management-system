@@ -37,7 +37,7 @@ function Footer() {
       style={{
         background: "linear-gradient(135deg, #0f172a, #111827)",
         color: "#f8fafc",
-        marginTop: "70px",
+        marginTop: "0px",
         padding: "55px 24px 20px",
       }}
     >
@@ -46,22 +46,22 @@ function Footer() {
           maxWidth: "1200px",
           margin: "0 auto",
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gridTemplateColumns: "repeat(4, 1fr)",
           gap: "40px",
-          alignItems: "start",
+          alignItems: "flex-start",
         }}
       >
-        <div>
-          <h2
-            style={{
-              margin: "0 0 10px",
-              fontSize: "24px",
-              fontWeight: "700",
-              letterSpacing: "0.3px",
-            }}
-          >
-            EventMS
-          </h2>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <h3
+              style={{
+                marginBottom: "16px", 
+                fontSize: "17px",     
+                color: "#ffffff",
+                fontWeight: "600",
+              }}
+            >
+              EventMS
+            </h3>
           <p
             style={{
               margin: 0,
@@ -71,11 +71,12 @@ function Footer() {
               maxWidth: "260px",
             }}
           >
-            Discover and manage events in a simple and modern way.
+            Discover and manage events <br />
+            in a simple and modern way.
           </p>
         </div>
 
-        <div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           <h3
             style={{
               marginBottom: "16px",
@@ -149,7 +150,7 @@ function Footer() {
           </div>
         </div>
 
-        <div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           <h3
             style={{
               marginBottom: "16px",
@@ -202,7 +203,7 @@ function Footer() {
           </div>
         </div>
 
-        <div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           <h3
             style={{
               marginBottom: "16px",

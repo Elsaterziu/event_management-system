@@ -1,9 +1,39 @@
 import { Link } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FaCalendarAlt, FaUsers, FaMapMarkerAlt, FaArrowRight } from "react-icons/fa";
 
 function Home() {
   const user = JSON.parse(localStorage.getItem("user"));
+  const [events, setEvents] = useState([]);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [translateX, setTranslateX] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+const cardWidth = 280;
+
+transform: `translateX(${-currentIndex * cardWidth + translateX}px)`
+const arrowStyle = {
+  background: "white",
+  border: "1px solid #ddd",
+  fontSize: "22px",
+  padding: "8px 12px",
+  borderRadius: "10px",
+  cursor: "pointer",
+};
+const next = () => {
+  setCurrentIndex((prev) =>
+    prev >= events.length - 4 ? 0 : prev + 1
+  );
+};
+
+const prev = () => {
+  setCurrentIndex((prev) =>
+    prev <= 0 ? events.length - 4 : prev - 1
+  );
+};
 
   useEffect(() => {
     const cards = document.querySelectorAll(".fade-up-card");
@@ -25,6 +55,53 @@ function Home() {
 
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+  fetch("http://127.0.0.1:8000/api/events")
+    .then((res) => res.json())
+    .then((data) => {
+      setEvents(data.data || data);
+    })
+    .catch((err) => console.log(err));
+}, []);
+
+useEffect(() => {
+  if (isHovered || events.length <= 4) return;
+
+  const interval = setInterval(() => {
+    setCurrentIndex((prev) =>
+      prev >= events.length - 4 ? 0 : prev + 1
+    );
+  }, 2000);
+
+  return () => clearInterval(interval);
+}, [isHovered, events.length]);
+
+useEffect(() => {
+  setCurrentIndex(0);
+}, [events]);
+const handleMouseDown = (e) => {
+  setIsDragging(true);
+  setStartX(e.clientX);
+};
+
+const handleMouseMove = (e) => {
+  if (!isDragging) return;
+  const diff = e.clientX - startX;
+  setTranslateX(diff);
+};
+
+const handleMouseUp = () => {
+  setIsDragging(false);
+
+  if (translateX > 50 && currentIndex > 0) {
+    setCurrentIndex(currentIndex - 1);
+  } else if (translateX < -50 && currentIndex < events.length - 4) {
+    setCurrentIndex(currentIndex + 1);
+  }
+
+  setTranslateX(0);
+};
 
   return (
     <div
@@ -408,151 +485,158 @@ function Home() {
           ))}
         </div>
       </section>
+<section
+  style={{
+    maxWidth: "1200px",
+    margin: "0 auto",
+    padding: "0 0 70px",
+  }}
+>
+  <div style={{ marginBottom: "22px" }}>
+    <h2
+      style={{
+        fontSize: "32px",
+        margin: "0 0 10px",
+        color: "#0f172a",
+      }}
+    >
+      Featured Events
+    </h2>
+    
+  </div>
 
-      <section
-        style={{
-          maxWidth: "1200px",
-          margin: "0 auto",
-          padding: "0 30px 70px",
-        }}
-      >
-        <div style={{ marginBottom: "22px" }}>
-          <h2
-            style={{
-              fontSize: "34px",
-              margin: "0 0 10px",
-              color: "#0f172a",
-            }}
-          >
-            Platform Highlights
-          </h2>
-          <p
-            style={{
-              margin: 0,
-              color: "#64748b",
-              fontSize: "16px",
-            }}
-          >
-            Everything you need to browse, join, and manage events more easily.
-          </p>
-        </div>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+    }}
+  >
+   
 
-        <div
+    {/* SLIDER */}
+    <div style={{ display: "flex", alignItems: "center", gap: "10px" ,overflow: "hidden",
+  width: "100%",}}>
+  
+  {/* LEFT */}
+  <button onClick={prev} style={arrowStyle}>‹</button>
+
+  {/* SLIDER */}
+  <div
+    onMouseEnter={() => setIsHovered(true)}
+    onMouseLeave={(e) => {
+      setIsHovered(false);
+      handleMouseUp(e);
+    }}
+    onMouseDown={handleMouseDown}
+    onMouseMove={handleMouseMove}
+    onMouseUp={(e) => {
+      handleMouseUp(e);
+      setIsHovered(false);
+    }}
+    style={{
+      overflow: "hidden",
+      width: "100%",
+      cursor: isDragging ? "grabbing" : "grab",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        gap: "20px",
+        transform: `translateX(-${currentIndex * 280 - translateX}px)`,
+        transition: isDragging
+          ? "none"
+          : "transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)", // 🔥 smooth premium
+      }}
+    >
+      {events.map((event) => (
+  <div
+    key={event.id}
+    className="hover-card"
+    style={{
+      minWidth: "260px",
+      height: "380px",
+      display: "flex",
+      flexDirection: "column",
+      background: "white",
+      borderRadius: "20px",
+      overflow: "hidden",
+      boxShadow: "0 8px 22px rgba(0,0,0,0.06)",
+    }}
+  >
+    <img
+  src={event.image}
+  alt={event.title}
+  style={{
+    width: "100%",
+    height: "150px",
+    objectFit: "cover",
+  }}
+/>
+
+           {/* CONTENT */}
+    <div
+      style={{
+        padding: "18px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between", // 🔥 KEY
+        flex: 1,
+      }}
+    >
+      {/* TOP CONTENT */}
+      <div>
+  <h3 style={{ marginBottom: "8px" }}>{event.title}</h3>
+
+  <p style={{ color: "#64748b", fontSize: "14px", margin: "4px 0" }}>
+    <strong>Location:</strong> {event.location}
+  </p>
+
+  <p style={{ color: "#64748b", fontSize: "13px", margin: "2px 0" }}>
+    <strong>Date:</strong>{" "}
+    {new Date(event.event_date).toLocaleDateString()}
+  </p>
+
+  <p style={{ color: "#64748b", fontSize: "13px", margin: "0" }}>
+    <strong>Time:</strong>{" "}
+    {new Date(event.event_date).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}
+  </p>
+</div>
+
+      {/* BUTTON ALWAYS SAME POSITION */}
+      <Link to={`/events/${event.id}`}>
+        <button
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: "20px",
+            marginTop: "12px",
+            width: "100%",
+            padding: "8px",
+            background: "#2563eb",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
           }}
         >
-          <div
-            className="fade-up-card hover-card"
-            style={{
-              background: "white",
-              borderRadius: "20px",
-              padding: "26px",
-              border: "1px solid #e5e7eb",
-              boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
-            }}
-          >
-            <div
-              style={{
-                width: "52px",
-                height: "52px",
-                borderRadius: "14px",
-                background: "#dbeafe",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: "16px",
-                color: "#2563eb",
-                fontSize: "20px",
-              }}
-            >
-              <FaCalendarAlt />
-            </div>
+          View Details
+        </button>
+      </Link>
+    </div>
+  </div>
+))}
+    </div>
+  </div>
 
-            <h3 style={{ marginBottom: "10px", color: "#0f172a" }}>
-              Browse Events
-            </h3>
-            <p style={{ color: "#475569", lineHeight: "1.7", margin: 0 }}>
-              View upcoming events with details such as date, location, and
-              available spots.
-            </p>
-          </div>
+  {/* RIGHT */}
+  <button onClick={next} style={arrowStyle}>›</button>
 
-          <div
-            className="fade-up-card hover-card"
-            style={{
-              background: "white",
-              borderRadius: "20px",
-              padding: "26px",
-              border: "1px solid #e5e7eb",
-              boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
-            }}
-          >
-            <div
-              style={{
-                width: "52px",
-                height: "52px",
-                borderRadius: "14px",
-                background: "#dbeafe",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: "16px",
-                color: "#2563eb",
-                fontSize: "20px",
-              }}
-            >
-              <FaUsers />
-            </div>
-
-            <h3 style={{ marginBottom: "10px", color: "#0f172a" }}>
-              Manage Participation
-            </h3>
-            <p style={{ color: "#475569", lineHeight: "1.7", margin: 0 }}>
-              Users can register and later manage their joined events from one
-              place.
-            </p>
-          </div>
-
-          <div
-            className="fade-up-card hover-card"
-            style={{
-              background: "white",
-              borderRadius: "20px",
-              padding: "26px",
-              border: "1px solid #e5e7eb",
-              boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
-            }}
-          >
-            <div
-              style={{
-                width: "52px",
-                height: "52px",
-                borderRadius: "14px",
-                background: "#dbeafe",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: "16px",
-                color: "#2563eb",
-                fontSize: "20px",
-              }}
-            >
-              <FaMapMarkerAlt />
-            </div>
-
-            <h3 style={{ marginBottom: "10px", color: "#0f172a" }}>
-              Admin Control
-            </h3>
-            <p style={{ color: "#475569", lineHeight: "1.7", margin: 0 }}>
-              Admins can oversee events, update details, and track participants
-              efficiently.
-            </p>
-          </div>
-        </div>
-      </section>
+</div>
+  </div>
+</section>
+     
     </div>
   );
 }

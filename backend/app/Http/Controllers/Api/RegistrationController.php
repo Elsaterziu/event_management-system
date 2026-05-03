@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Registration;
 use Illuminate\Http\Request;
+use App\Models\User;
+use App\Models\GuestRegistration;
+
 
 class RegistrationController extends Controller
 {
@@ -46,7 +49,7 @@ class RegistrationController extends Controller
 
         public function index()
     {   
-        $registrations = \App\Models\Registration::with(['user', 'event'])
+        $registrations = Registration::with(['user', 'event'])
         ->latest()
         ->get();
 
@@ -60,6 +63,35 @@ class RegistrationController extends Controller
 
         return response()->json($registrations);
     }
+
+    public function guestRegister(Request $request)
+{
+    $request->validate([
+        'name' => 'required',
+        'email' => 'required|email',
+        'event_id' => 'required|exists:events,id',
+    ]);
+
+    $exists = GuestRegistration::where('email', $request->email)
+        ->where('event_id', $request->event_id)
+        ->exists();
+
+    if ($exists) {
+        return response()->json([
+            'message' => 'You are already registered for this event'
+        ], 400);
+    }
+
+    GuestRegistration::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'event_id' => $request->event_id,
+    ]);
+
+    return response()->json([
+        'message' => 'You are registered successfully'
+    ]);
+}
 
     public function cancel($id)
     {

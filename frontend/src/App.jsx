@@ -1,4 +1,8 @@
 import { Routes, Route } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
@@ -11,7 +15,26 @@ import Participants from "./pages/Participants";
 import EventDetails from "./pages/EventDetails";
 import AssistantPage from "./pages/AssistantPage";
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  }, [pathname]);
+
+  return null;
+}
+
 function App() {
+  const location = useLocation();
+
+  const hideFooter =
+    location.pathname === "/login" ||
+    location.pathname === "/register";
+
   return (
     <div
       style={{
@@ -20,7 +43,12 @@ function App() {
         flexDirection: "column",
       }}
     >
+      <ScrollToTop />
+
+      {/* Navbar gjithmonë shfaqet */}
       <Navbar />
+
+      <ToastContainer position="top-right" autoClose={3000} />
 
       <main style={{ flex: 1 }}>
         <Routes>
@@ -36,7 +64,8 @@ function App() {
         </Routes>
       </main>
 
-      <Footer />
+      {}
+      {!hideFooter && <Footer />}
     </div>
   );
 }

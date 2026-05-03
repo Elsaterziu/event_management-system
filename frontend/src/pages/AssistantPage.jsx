@@ -4,303 +4,168 @@ import "./assistant.css";
 
 function AssistantPage() {
   const [sessions, setSessions] = useState([]);
-  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [active, setActive] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingSessions, setLoadingSessions] = useState(true);
-  const [error, setError] = useState("");
 
-  const messagesContainerRef = useRef(null);
-  const inputRef = useRef(null);
+  const messagesRef = useRef(null);
 
   useEffect(() => {
     loadSessions();
   }, []);
 
   useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (container) {
-      container.scrollTop = container.scrollHeight;
-    }
-  }, [messages, loading]);
-
-  useEffect(() => {
-    if (!loading) {
-      inputRef.current?.focus();
-    }
-  }, [loading, activeSessionId, messages]);
+    messagesRef.current?.scrollTo(0, messagesRef.current.scrollHeight);
+  }, [messages]);
 
   const loadSessions = async () => {
-    try {
-      setLoadingSessions(true);
-      setError("");
+    const res = await api.get("/assistant/sessions");
+    setSessions(res.data);
 
-      const res = await api.get("/assistant/sessions");
-      const fetchedSessions = Array.isArray(res.data) ? res.data : [];
-
-      setSessions(fetchedSessions);
-
-      if (fetchedSessions.length > 0) {
-        await loadSessionMessages(fetchedSessions[0].id);
-      } else {
-        await startNewChat();
-      }
-    } catch (err) {
-      console.error("Failed to load sessions:", err);
-      setError("Failed to load assistant sessions.");
-    } finally {
-      setLoadingSessions(false);
-      inputRef.current?.focus();
-    }
+    if (res.data.length) loadMessages(res.data[0].id);
+    else newChat();
   };
 
-  const loadSessionMessages = async (sessionId) => {
-    try {
-      setError("");
+  const deleteSession = async (id) => {
+  try {
+    console.log("Deleting:", id);
 
-      const res = await api.get(`/assistant/session/${sessionId}`);
-      const session = res.data;
+    await api.delete(`/assistant/sessions/${id}`);
 
-      setActiveSessionId(session.id);
-      setMessages(session.messages || []);
-    } catch (err) {
-      console.error("Failed to load session messages:", err);
-      setError("Failed to load chat messages.");
-    } finally {
-      inputRef.current?.focus();
+    setSessions((prev) =>
+  prev.map((s) =>
+    s.id === sessionId ? { ...s, title: newTitle } : s
+  )
+);
+
+    if (active === id) {
+      setActive(null);
     }
+  } catch (error) {
+    console.error("DELETE ERROR:", error.response || error);
+  }
+};
+  const loadMessages = async (id) => {
+    const res = await api.get(`/assistant/session/${id}`);
+    setActive(id);
+    setMessages(res.data.messages);
   };
 
-  const startNewChat = async () => {
-    try {
-      setError("");
-      setLoading(true);
-
-      const res = await api.post("/assistant/session");
-      const newSession = res.data;
-
-      setActiveSessionId(newSession.id);
-      setMessages(newSession.messages || []);
-
-      setSessions((prev) => {
-        const exists = prev.some((s) => s.id === newSession.id);
-        if (exists) return prev;
-        return [newSession, ...prev];
-      });
-
-      setInput("");
-    } catch (err) {
-      console.error("Failed to create new session:", err);
-      setError("Failed to create a new chat.");
-    } finally {
-      setLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
+  const newChat = async () => {
+    const res = await api.post("/assistant/session");
+    setActive(res.data.id);
+    setMessages(res.data.messages);
+    setSessions((prev) => [res.data, ...prev]);
   };
 
-  const sendMessage = async () => {
-    const text = input.trim();
+  const send = async () => {
+    if (!input.trim()) return;
 
-    if (!text || loading || !activeSessionId) return;
+    const text = input;
 
-    const tempUserMessage = {
-      id: Date.now(),
-      role: "user",
-      content: text,
-    };
-
-    setMessages((prev) => [...prev, tempUserMessage]);
+    setMessages((m) => [...m, { role: "user", content: text }]);
     setInput("");
-    setLoading(true);
-    setError("");
+
+    const typingId = Date.now();
+
+    setMessages((m) => [
+      ...m,
+      { id: typingId, role: "assistant", content: "Typing..." },
+    ]);
 
     try {
       const res = await api.post("/assistant/ask", {
-        session_id: activeSessionId,
+        session_id: active,
         message: text,
       });
 
-      const assistantMessage = res?.data?.assistant_message;
+      const reply = res.data.reply;
 
-      if (assistantMessage) {
-        setMessages((prev) => [...prev, assistantMessage]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            role: "assistant",
-            content:
-              res?.data?.reply ||
-              "Sorry, I could not understand that. Please try again.",
-          },
-        ]);
-      }
+      let i = 0;
+      let current = "";
 
-      if (res?.data?.session) {
-        setSessions((prev) =>
-          prev.map((session) =>
-            session.id === res.data.session.id
-              ? { ...session, title: res.data.session.title }
-              : session
+      const interval = setInterval(() => {
+        current += reply[i];
+        i++;
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === typingId ? { ...msg, content: current } : msg
           )
         );
-      }
-    } catch (err) {
-      console.error("Failed to send message:", err);
-      setError("Failed to get assistant response.");
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 2,
-          role: "assistant",
-          content: "Sorry, something went wrong. Please try again.",
-        },
-      ]);
-    } finally {
-      setLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 0);
+        if (i >= reply.length) clearInterval(interval);
+      }, 15);
+
+    } catch {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === typingId
+            ? { ...msg, content: "Something went wrong." }
+            : msg
+        )
+      );
     }
-  };
-
-  const deleteSession = async (sessionId) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this chat?");
-    if (!confirmDelete) return;
-
-    try {
-      setError("");
-
-     await api.post(`/assistant/session/${sessionId}/delete`);
-
-      const updatedSessions = sessions.filter((session) => session.id !== sessionId);
-      setSessions(updatedSessions);
-
-      if (activeSessionId === sessionId) {
-        if (updatedSessions.length > 0) {
-          await loadSessionMessages(updatedSessions[0].id);
-        } else {
-          await startNewChat();
-        }
-      }
-    } catch (err) {
-      console.error("Failed to delete session:", err);
-      setError("Failed to delete chat.");
-    }
-  };
-
-  const handleSelectSession = async (sessionId) => {
-    if (loading) return;
-    await loadSessionMessages(sessionId);
   };
 
   return (
-    <div className="assistant-page">
-      <div className="assistant-layout">
-        <aside className="assistant-sidebar">
-          <div className="assistant-sidebar-header">
-            <h3>Chats</h3>
-            <button type="button" onClick={startNewChat} disabled={loading}>
-              New chat
-            </button>
-          </div>
+    <div className="assistant-layout">
+      <aside className="assistant-sidebar">
+  
+  <div className="assistant-sidebar-header">
+    <h3>Chats</h3>
+    <button onClick={newChat}>New</button>
+  </div>
 
-          <div className="assistant-session-list">
-            {loadingSessions ? (
-              <p>Loading...</p>
-            ) : sessions.length === 0 ? (
-              <p>No chats yet.</p>
-            ) : (
-              sessions.map((session) => (
-                <div
-                  key={session.id}
-                  className={`assistant-session-item-wrapper ${
-                    activeSessionId === session.id ? "active" : ""
-                  }`}
-                >
-                  <button
-                    type="button"
-                    className={`assistant-session-item ${
-                      activeSessionId === session.id ? "active" : ""
-                    }`}
-                    onClick={() => handleSelectSession(session.id)}
-                  >
-                    {session.title || "New conversation"}
-                  </button>
+  <div className="assistant-session-list">
+  {sessions.map((s) => (
+    <div key={s.id} className="assistant-session-item-wrapper">
 
-                  <button
-                    type="button"
-                    className="assistant-session-delete"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteSession(session.id);
-                    }}
-                    title="Delete chat"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </aside>
+      <button
+        className={`assistant-session-item ${
+          active === s.id ? "active" : ""
+        }`}
+        onClick={() => loadMessages(s.id)}
+      >
+        {s.title}
+      </button>
 
-        <main className="assistant-main">
-          <div className="assistant-header">
-            <div>
-              <h3>AI Event Assistant</h3>
-              <p>
-                Ask about upcoming events, event details, city, dates, capacity,
-                and your registrations.
-              </p>
+      <button
+        className="assistant-session-delete"
+        onClick={(e) => {
+          e.stopPropagation();
+          deleteSession(s.id);
+        }}
+      >
+        ×
+      </button>
+
+    </div>
+  ))}
+</div>
+
+</aside>
+
+      <main className="assistant-main">
+        <div className="assistant-messages" ref={messagesRef}>
+          {messages.map((m, i) => (
+            <div key={i} className={`message-row ${m.role}`}>
+              <div className={`message-bubble ${m.role}`}>
+                {m.content}
+              </div>
             </div>
-          </div>
+          ))}
+        </div>
 
-          {error && <div className="assistant-error">{error}</div>}
-
-          <div className="assistant-messages" ref={messagesContainerRef}>
-            {messages.map((msg) => (
-              <div key={msg.id} className={`message-row ${msg.role}`}>
-                <div className={`message-bubble ${msg.role}`}>
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-
-            {loading && (
-              <div className="message-row assistant">
-                <div className="message-bubble assistant">Typing...</div>
-              </div>
-            )}
-          </div>
-
-          <div className="assistant-composer">
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Ask about events..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !loading) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              disabled={!activeSessionId}
-            />
-
-            <button
-              type="button"
-              onClick={sendMessage}
-              disabled={loading || !input.trim() || !activeSessionId}
-            >
-              {loading ? "Sending..." : "Send"}
-            </button>
-          </div>
-        </main>
-      </div>
+        <div className="assistant-composer">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && send()}
+          />
+          <button onClick={send}>Send</button>
+        </div>
+      </main>
     </div>
   );
 }

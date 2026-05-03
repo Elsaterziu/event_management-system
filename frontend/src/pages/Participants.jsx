@@ -78,32 +78,43 @@ function Participants() {
   return (
     <div className="participants-page">
       <div className="participants-container">
-          <div className="participants-header">
-              <div className="header-side"></div>
-              
-              <div className="participants-header-text">
-                <h1>Participants</h1>
-                <h2>{eventTitle}</h2>
-              </div>
-              
-              <Link to="/admin" className="back-btn">
-                Back
-              </Link>
-            </div>
+         <div className="participants-header">
+
+  <div className="summary-card">
+    <span>Total Participants</span>
+    <strong>{participants.length}</strong>
+  </div>
+
+  <div className="participants-header-text">
+    <h1>Participants</h1>
+    <h2>{eventTitle}</h2>
+
+    {/* BACK KËTU POSHT */}
+    <Link to="/admin" className="back-btn">
+      Back
+    </Link>
+  </div>
+
+  <div className="summary-card">
+    <span>Event ID</span>
+    <strong>{eventId}</strong>
+  </div>
+
+</div>
         {message && <div className="participants-alert success">{message}</div>}
         {error && <div className="participants-alert error">{error}</div>}
 
-        <div className="participants-summary">
+         {/* <div className="participants-summary">
           <div className="summary-card">
             <span>Total Participants</span>
             <strong>{participants.length}</strong>
-          </div>
+          </div> 
 
           <div className="summary-card">
             <span>Event ID</span>
             <strong>{eventId}</strong>
           </div>
-        </div>
+        </div> */}
 
         <div className="participants-card">
           {loading ? (

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\ChatMessage;
 use App\Models\ChatSession;
+use App\Models\ChatMessage;
 use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,405 +14,248 @@ class AssistantController extends Controller
 {
     public function sessions()
     {
-        $user = Auth::user();
-
-        $sessions = ChatSession::where('user_id', $user->id)
+        return ChatSession::where('user_id', Auth::id())
             ->latest()
-            ->get(['id', 'title', 'created_at', 'updated_at']);
-
-        return response()->json($sessions);
+            ->get();
     }
 
     public function createSession()
     {
-        $user = Auth::user();
-
         $session = ChatSession::create([
-            'user_id' => $user->id,
-            'title' => 'New conversation',
+            'user_id' => Auth::id(),
+            'title' => 'New conversation'
         ]);
 
         ChatMessage::create([
             'chat_session_id' => $session->id,
             'role' => 'assistant',
-            'content' => 'Hello! I can help you with upcoming events, specific event details, events by city, dates, capacity, and your registrations.',
+            'content' => 'Hello. What can I help you today?'
         ]);
 
         return response()->json([
             'id' => $session->id,
             'title' => $session->title,
-            'messages' => $session->messages()->get(['id', 'role', 'content', 'created_at']),
+            'messages' => $session->messages
         ]);
     }
 
     public function showSession($id)
     {
-        $user = Auth::user();
-
-        $session = ChatSession::with('messages:id,chat_session_id,role,content,created_at')
+        return ChatSession::with('messages')
             ->where('id', $id)
-            ->where('user_id', $user->id)
-            ->first();
-
-        if (!$session) {
-            return response()->json([
-                'message' => 'Session not found.'
-            ], 404);
-        }
-
-        return response()->json([
-            'id' => $session->id,
-            'title' => $session->title,
-            'messages' => $session->messages,
-        ]);
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
     }
 
-    public function destroySession($id)
-    {
-        $user = Auth::user();
+    public function destroy($id)
+{
+    $session = ChatSession::where('id', $id)
+        ->where('user_id', Auth::id())
+        ->firstOrFail();
 
-        $session = ChatSession::where('id', $id)
-            ->where('user_id', $user->id)
-            ->first();
+    $session->delete();
 
-        if (!$session) {
-            return response()->json([
-                'message' => 'Session not found.'
-            ], 404);
-        }
-
-        $session->delete();
-
-        return response()->json([
-            'message' => 'Chat deleted successfully.'
-        ]);
-    }
-
+    return response()->json(['message' => 'Deleted']);
+}
     public function chat(Request $request)
     {
         $request->validate([
-            'session_id' => 'required|integer|exists:chat_sessions,id',
+            'session_id' => 'required',
             'message' => 'required|string'
         ]);
 
-        $user = Auth::user();
-
         $session = ChatSession::where('id', $request->session_id)
-            ->where('user_id', $user->id)
-            ->first();
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
 
-        if (!$session) {
-            return response()->json([
-                'message' => 'This session does not belong to the current user.'
-            ], 403);
-        }
-
-        $userMessage = trim($request->message);
-
-        $savedUserMessage = ChatMessage::create([
+        ChatMessage::create([
             'chat_session_id' => $session->id,
             'role' => 'user',
-            'content' => $userMessage,
-        ]);
+            'content' => $request->message
+        ]);if ($session->title === 'New conversation') {
+    $session->update([
+        'title' => strlen($request->message) > 30
+            ? substr($request->message, 0, 30) . '...'
+            : $request->message
+    ]);
+}
 
-        $reply = $this->generateReply($userMessage);
+        $reply = $this->generateReply($request->message);
 
-        $savedAssistantMessage = ChatMessage::create([
+        ChatMessage::create([
             'chat_session_id' => $session->id,
             'role' => 'assistant',
-            'content' => $reply,
+            'content' => $reply
         ]);
-
-        if ($session->title === 'New conversation') {
-            $session->update([
-                'title' => $this->generateSessionTitle($userMessage),
-            ]);
-        }
 
         return response()->json([
-            'reply' => $reply,
-            'user_message' => $savedUserMessage,
-            'assistant_message' => $savedAssistantMessage,
-            'session' => [
-                'id' => $session->id,
-                'title' => $session->fresh()->title,
-            ]
+            'reply' => $reply
         ]);
     }
 
-    private function generateReply($rawMessage)
-    {
-        $message = $this->normalizeText($rawMessage);
+    private function generateReply($message)
+{
+    $msg = strtolower(trim($message));
 
-        if ($this->isGreeting($message)) {
-            return 'Hello! I can help you with upcoming events, specific event details, events by city, dates, capacity, and your registrations.';
+    // ------------------------
+    // KEYWORDS
+    // ------------------------
+    $greetings = ['hi', 'hello', 'hey', 'pershendetje'];
+    $myEventsKeywords = ['my events', 'my registrations', 'events i joined'];
+    $upcomingKeywords = ['upcoming', 'future events', 'next events'];
+
+    $cities = ['prishtina', 'ferizaj', 'gjilan', 'peja'];
+
+    // ------------------------
+    // GREETING
+    // ------------------------
+    foreach ($greetings as $greet) {
+        if (preg_match('/\b' . $greet . '\b/', $msg)) {
+            return "Hello. What can I help you today?";
         }
+    }
 
-        if ($this->isMyEventsIntent($message)) {
-            $user = Auth::user();
-
-            if (!method_exists($user, 'registeredEvents')) {
-                return 'Registered events relation is missing in the User model.';
-            }
-
-            $events = $user->registeredEvents()
-                ->orderBy('event_date', 'asc')
-                ->get()
-                ->unique('id')
-                ->values();
+    // ------------------------
+    // MY EVENTS
+    // ------------------------
+    foreach ($myEventsKeywords as $key) {
+        if (str_contains($msg, $key)) {
+            $events = Auth::user()->registeredEvents()->get();
 
             if ($events->isEmpty()) {
-                return 'You do not have any registrations yet.';
+                return "You are not registered for any events.";
             }
 
-            return 'Your registered events are: ' . $events->pluck('title')->implode(', ') . '.';
+            return "Your events:\n" .
+                $events->map(fn($e) =>
+                    "- {$e->title} (" .
+                    Carbon::parse($e->event_date)->format('Y-m-d H:i') . ")"
+                )->implode("\n");
+        }
+    }
+
+    // ------------------------
+    // TIME FILTERS
+    // ------------------------
+    $start = null;
+    $end = null;
+
+    if (str_contains($msg, 'today')) {
+        $start = Carbon::today();
+        $end = Carbon::today()->endOfDay();
+    }
+
+    if (str_contains($msg, 'tomorrow')) {
+        $start = Carbon::tomorrow();
+        $end = Carbon::tomorrow()->endOfDay();
+    }
+
+    if (str_contains($msg, 'this week')) {
+        $start = Carbon::now()->startOfWeek();
+        $end = Carbon::now()->endOfWeek();
+    }
+
+    // ------------------------
+    // CITY DETECTION
+    // ------------------------
+    $foundCity = null;
+
+    foreach ($cities as $city) {
+        if (str_contains($msg, $city)) {
+            $foundCity = $city;
+            break;
+        }
+    }
+
+    // ------------------------
+    // EVENTS FILTER (SMART)
+    // ------------------------
+    if (str_contains($msg, 'event')) {
+
+        $query = Event::query();
+
+        if ($foundCity) {
+            $query->where('location', 'LIKE', "%$foundCity%");
         }
 
-        $specificEvent = $this->findSpecificEvent($message);
-        if ($specificEvent) {
-            return $this->formatSingleEventDetails($specificEvent, $message);
+        if ($start && $end) {
+            $query->whereBetween('event_date', [$start, $end]);
         }
 
-        if ($this->isUpcomingIntent($message)) {
+        if (str_contains($msg, 'upcoming')) {
+            $query->where('event_date', '>=', now());
+        }
+
+        $events = $query->orderBy('event_date')->get();
+
+        if ($events->isEmpty()) {
+
+            if ($foundCity && $start) {
+                return "There are no events in {$foundCity} for that period.";
+            }
+
+            if ($foundCity) {
+                return "There are no events in {$foundCity}.";
+            }
+
+            if ($start) {
+                return "There are no events for that period.";
+            }
+
+            return "No events found.";
+        }
+
+        return $events->map(fn($e) =>
+            "- {$e->title} (" .
+            Carbon::parse($e->event_date)->format('Y-m-d H:i') .
+            ", {$e->location})"
+        )->implode("\n");
+    }
+
+    // ------------------------
+    // UPCOMING (fallback)
+    // ------------------------
+    foreach ($upcomingKeywords as $key) {
+        if (str_contains($msg, $key)) {
             $events = Event::where('event_date', '>=', now())
-                ->orderBy('event_date', 'asc')
-                ->get()
-                ->unique('id')
-                ->values();
+                ->orderBy('event_date')
+                ->limit(5)
+                ->get();
 
             if ($events->isEmpty()) {
-                return 'There are no upcoming events at the moment.';
+                return "There are no upcoming events.";
             }
 
-            return $this->formatEventList('Here are the upcoming events', $events);
+            return $events->map(fn($e) =>
+                "- {$e->title} (" .
+                Carbon::parse($e->event_date)->format('Y-m-d H:i') . ")"
+            )->implode("\n");
         }
-
-        $city = $this->extractCity($message);
-
-        if ($city) {
-            $normalizedCity = $this->normalizeCity($city);
-
-            $events = Event::orderBy('event_date', 'asc')
-                ->get()
-                ->filter(function ($event) use ($normalizedCity) {
-                    $location = $this->normalizeCity($event->location);
-                    return str_contains($location, $normalizedCity);
-                })
-                ->unique('id')
-                ->values();
-
-            if ($events->isEmpty()) {
-                return 'I could not find events in ' . ucfirst($city) . '.';
-            }
-
-            return $this->formatEventList('Here are the matching events', $events);
-        }
-
-        if ($this->isCapacityIntent($message)) {
-            $events = Event::withCount('users')
-                ->orderBy('event_date', 'asc')
-                ->get()
-                ->unique('id')
-                ->values();
-
-            if ($events->isEmpty()) {
-                return 'No events were found.';
-            }
-
-            return $events->map(function ($event) {
-                return $event->title . ': ' . $event->users_count . '/' . $event->max_participants . ' registered';
-            })->implode('; ');
-        }
-
-        return 'Sorry, I did not understand that. You can ask about upcoming events, a specific event, events in a city, capacity, or your registrations.';
     }
 
-    private function generateSessionTitle($message)
-    {
-        $title = trim($message);
-        $title = preg_replace('/\s+/', ' ', $title);
+    // ------------------------
+    // EVENT DETAILS
+    // ------------------------
+    $event = Event::all()->first(function ($e) use ($msg) {
+        return str_contains($msg, strtolower($e->title));
+    });
 
-        return mb_strimwidth($title, 0, 40, '...');
+    if ($event) {
+
+        $taken = $event->registrations()->count();
+        $free = max(0, $event->capacity - $taken);
+
+        return "{$event->title} takes place on " .
+            Carbon::parse($event->event_date)->format('Y-m-d') .
+            " at " .
+            Carbon::parse($event->event_date)->format('H:i') .
+            ", in {$event->location}. " .
+            "Available seats: {$free}.";
     }
 
-    private function isGreeting($message)
-    {
-        $greetings = [
-            'hello', 'hi', 'hey', 'pershendetje', 'tung', 'tungjatjeta', 'cka ka', 'cka po bon'
-        ];
-
-        return in_array($message, $greetings);
-    }
-
-    private function isMyEventsIntent($message)
-    {
-        return str_contains($message, 'my events') ||
-               str_contains($message, 'my registrations') ||
-               str_contains($message, 'my registered events') ||
-               $message === 'registrations';
-    }
-
-    private function isUpcomingIntent($message)
-    {
-        return str_contains($message, 'upcoming events') ||
-               str_contains($message, 'tell me the upcoming events') ||
-               str_contains($message, 'future events') ||
-               str_contains($message, 'next events');
-    }
-
-    private function isCapacityIntent($message)
-    {
-        return str_contains($message, 'capacity') ||
-               str_contains($message, 'available spots') ||
-               str_contains($message, 'how many registered') ||
-               str_contains($message, 'participants') ||
-               str_contains($message, 'spots left');
-    }
-
-    private function extractCity($message)
-    {
-        $patterns = [
-            '/events in (.+)/i',
-            '/show events in (.+)/i',
-            '/find events in (.+)/i',
-            '/what events are in (.+)/i',
-        ];
-
-        foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $message, $matches)) {
-                return trim($matches[1]);
-            }
-        }
-
-        return null;
-    }
-
-    private function findSpecificEvent($message)
-    {
-        $cleanMessage = $this->stripEventQuestionWords($message);
-
-        $events = Event::withCount('users')->get();
-
-        foreach ($events as $event) {
-            $title = $this->normalizeText($event->title);
-
-            if (
-                str_contains($message, $title) ||
-                str_contains($cleanMessage, $title) ||
-                str_contains($title, $cleanMessage) ||
-                similar_text($cleanMessage, $title, $percent) && $percent >= 75
-            ) {
-                return $event;
-            }
-        }
-
-        return null;
-    }
-
-    private function stripEventQuestionWords($message)
-    {
-        $phrases = [
-            'tell me about ',
-            'details about ',
-            'details for ',
-            'info about ',
-            'information about ',
-            'when is ',
-            'where is ',
-            'what time is ',
-            'what time does ',
-            'show me ',
-            'tell me ',
-        ];
-
-        $cleaned = $message;
-
-        foreach ($phrases as $phrase) {
-            if (str_starts_with($cleaned, $phrase)) {
-                $cleaned = trim(substr($cleaned, strlen($phrase)));
-            }
-        }
-
-        $cleaned = preg_replace('/^the\s+/i', '', $cleaned);
-
-        return trim($cleaned);
-    }
-
-    private function formatSingleEventDetails($event, $message)
-    {
-        $eventDate = Carbon::parse($event->event_date);
-        $registered = $event->users_count ?? 0;
-        $maxParticipants = (int) ($event->max_participants ?? 0);
-        $remaining = max($maxParticipants - $registered, 0);
-
-        if (str_contains($message, 'when')) {
-            return "{$event->title} is on " . $eventDate->format('Y-m-d') . " at " . $eventDate->format('H:i') . ".";
-        }
-
-        if (str_contains($message, 'where')) {
-            return "{$event->title} will take place in {$event->location}.";
-        }
-
-        if (str_contains($message, 'spots left') || str_contains($message, 'available spots')) {
-            return "{$event->title} has {$remaining} spots left.";
-        }
-
-        return "Event details for {$event->title}: Date: " .
-            $eventDate->format('Y-m-d') .
-            ", Time: " . $eventDate->format('H:i') .
-            ", Location: {$event->location}" .
-            ", Max participants: {$maxParticipants}" .
-            ", Registered: {$registered}" .
-            ", Remaining spots: {$remaining}.";
-    }
-
-    private function normalizeText($text)
-    {
-        $text = strtolower(trim($text));
-
-        $replace = [
-            'ë' => 'e',
-            'ç' => 'c',
-            '?' => '',
-            '.' => '',
-            ',' => '',
-            '!' => '',
-            ':' => '',
-            ';' => '',
-        ];
-
-        return str_replace(array_keys($replace), array_values($replace), $text);
-    }
-
-    private function normalizeCity($city)
-    {
-        $city = $this->normalizeText($city);
-
-        $map = [
-            'prishtina' => 'prishtine',
-            'prishtine' => 'prishtine',
-            'prizreni' => 'prizren',
-            'prizren' => 'prizren',
-            'peja' => 'peje',
-            'peje' => 'peje',
-            'ferizaji' => 'ferizaj',
-            'ferizaj' => 'ferizaj',
-            'gjilani' => 'gjilan',
-            'gjilan' => 'gjilan',
-            'gjakova' => 'gjakove',
-            'gjakove' => 'gjakove',
-        ];
-
-        return $map[$city] ?? $city;
-    }
-
-    private function formatEventList($intro, $events)
-    {
-        $list = $events->map(function ($event) {
-            $date = Carbon::parse($event->event_date)->format('Y-m-d H:i');
-            return "{$event->title} on {$date} in {$event->location}";
-        })->implode('; ');
-
-        return $intro . ': ' . $list . '.';
-    }
+    // ------------------------
+    // FALLBACK
+    // ------------------------
+    return "I did not understand your request. Try asking about events, locations, or your registrations.";
+}
 }

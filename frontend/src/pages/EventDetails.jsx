@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../services/api";
 import "./Events.css";
+import { toast } from "react-toastify";
 
 function EventDetails() {
   const { id } = useParams();
@@ -9,6 +10,8 @@ function EventDetails() {
   const [loading, setLoading] = useState(true);
   const [userRegistrations, setUserRegistrations] = useState([]);
   const user = JSON.parse(localStorage.getItem("user"));
+  const [message, setMessage] = useState(null);
+  const [messageType, setMessageType] = useState(""); 
 
   const placeholderImage =
     "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=900&q=80";
@@ -90,30 +93,29 @@ function EventDetails() {
   };
 
   const handleRegisterToEvent = async () => {
-    try {
-      if (!user) {
-        alert("Please login first.");
-        return;
-      }
-
-      await api.post("/register-event", {
-        user_id: user.id,
-        event_id: event.id,
-      });
-
-      alert("Registered successfully!");
-      fetchEvent();
-      fetchUserRegistrations();
-    } catch (error) {
-      console.error("Error registering to event:", error);
-
-      if (error.response?.data?.message) {
-        alert(error.response.data.message);
-      } else {
-        alert("Registration failed.");
-      }
+  try {
+    if (!user) {
+      toast.error("Please login first.");
+      return;
     }
-  };
+
+    await api.post("/register-event", {
+      user_id: user.id,
+      event_id: event.id,
+    });
+
+    toast.success("Registered successfully!");
+
+    fetchEvent();
+    fetchUserRegistrations();
+  } catch (error) {
+    console.error("Error registering to event:", error);
+
+    toast.error(
+      error.response?.data?.message || "Registration failed."
+    );
+  }
+};
 
   if (loading) {
     return (
@@ -151,6 +153,11 @@ function EventDetails() {
           <div className="event-details-content">
             <h1>{event.title}</h1>
 
+            {message && (
+                 <div className={`custom-alert ${messageType}`}>
+              {message}
+              </div>
+            )}
             <p className="event-details-description">
               {event.description || "No description available."}
             </p>
@@ -226,8 +233,8 @@ function EventDetails() {
               <div className="event-details-actions bottom-actions">
                 {isRegistered() ? (
                   <Link to="/my-events" className="btn btn-soft">
-                    View in My Events
-                  </Link>
+                             View in My Events <span>→</span>
+                      </Link>
                 ) : isEventFull() ? (
                   <button disabled className="btn btn-disabled">
                     Event Full
